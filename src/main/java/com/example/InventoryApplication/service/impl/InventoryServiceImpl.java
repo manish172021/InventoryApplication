@@ -1,5 +1,7 @@
 package com.example.InventoryApplication.service.impl;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,6 +10,8 @@ import com.example.InventoryApplication.exception.InsufficientStockException;
 import com.example.InventoryApplication.exception.ItemNotFoundException;
 import com.example.InventoryApplication.repository.InventoryRepository;
 import com.example.InventoryApplication.service.InventoryService;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,22 +30,6 @@ public class InventoryServiceImpl implements InventoryService {
 				.orElseThrow(() -> new ItemNotFoundException("Item not found with id: " + itemId));
 		item.setAvailableQuantity(item.getAvailableQuantity() + quantity);
 		log.info("Supplied {} units to item {}", quantity, itemId);
-	}
-
-	@Override
-	@Transactional
-	public void reserveItem(Long itemId, int quantity) {
-		Item item = inventoryRepository.findById(itemId)
-				.orElseThrow(() -> new ItemNotFoundException("Item not found with id: " + itemId));
-
-		if (item.getAvailableQuantity() < quantity) {
-			throw new InsufficientStockException(
-					"Requested: " + quantity + ", Available: " + item.getAvailableQuantity());
-		}
-
-		item.setAvailableQuantity(item.getAvailableQuantity() - quantity);
-		item.setReservedQuantity(item.getReservedQuantity() + quantity);
-		log.info("Reserved {} units for item {}", quantity, itemId);
 	}
 
 	@Override
@@ -67,5 +55,38 @@ public class InventoryServiceImpl implements InventoryService {
 				.orElseThrow(() -> new ItemNotFoundException("Item not found with id: " + itemId))
 				.getAvailableQuantity();
 	}
+	
+	@Retryable(
+			retryFor = ObjectOptimisticLockingFailureException.class,
+			maxAttempts = 3,
+			backoff = @Backoff(delay = 100, multiplier = 2)
+			)
+	@Transactional
+	@Override
+	public void reserveItem(Long itemId, int quantity) {
+		// Try reservation using optimistic locking
+        Item item = inventoryRepository.findById(itemId)
+                .orElseThrow(() -> new ItemNotFoundException("Item not found"));
 
+        if (item.getAvailableQuantity() < quantity) {
+            throw new InsufficientStockException("Not enough stock");
+        }
+
+        item.setAvailableQuantity(item.getAvailableQuantity() - quantity);
+        item.setReservedQuantity(item.getReservedQuantity() + quantity);
+	}
+	
+	// If all retries fail, this method will be called
+	@Recover
+	public void recover(ObjectOptimisticLockingFailureException ex, Long itemId, int quantity) {
+	    Item item = inventoryRepository.findByIdWithLock(itemId)
+	            .orElseThrow(() -> new ItemNotFoundException("Item not found"));
+
+	    if (item.getAvailableQuantity() < quantity) {
+	        throw new InsufficientStockException("Not enough stock");
+	    }
+
+	    item.setAvailableQuantity(item.getAvailableQuantity() - quantity);
+	    item.setReservedQuantity(item.getReservedQuantity() + quantity);
+	}
 }
