@@ -1,5 +1,7 @@
 package com.example.InventoryApplication.service.impl;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ public class InventoryServiceImpl implements InventoryService {
 
 	private final InventoryRepository inventoryRepository;
 
+	@CacheEvict(value = "inventory", key = "#itemId")
 	@Override
 	@Transactional
 	public void supplyItem(Long itemId, int quantity) {
@@ -32,6 +35,7 @@ public class InventoryServiceImpl implements InventoryService {
 		log.info("Supplied {} units to item {}", quantity, itemId);
 	}
 
+	@CacheEvict(value = "inventory", key = "#itemId")
 	@Override
 	@Transactional
 	public void cancelReservation(Long itemId, int quantity) {
@@ -48,6 +52,7 @@ public class InventoryServiceImpl implements InventoryService {
 		log.info("Cancelled reservation of {} units for item {}", quantity, itemId);
 	}
 
+	@Cacheable(value = "inventory", key = "#itemId")
 	@Override
 	@Transactional(readOnly = true)
 	public int getAvailableQuantity(Long itemId) {
@@ -56,6 +61,7 @@ public class InventoryServiceImpl implements InventoryService {
 				.getAvailableQuantity();
 	}
 	
+	@CacheEvict(value = "inventory", key = "#itemId")
 	@Retryable(
 			retryFor = ObjectOptimisticLockingFailureException.class,
 			maxAttempts = 3,
