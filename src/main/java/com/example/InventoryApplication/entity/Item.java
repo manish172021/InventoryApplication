@@ -21,7 +21,9 @@ public class Item {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    private String sku;
 
-    private int totalQuantity;
+    private int availableQuantity;
+    
+    private int reservedQuantity;
 }
