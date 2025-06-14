@@ -1,0 +1,24 @@
+server:
+  address: localhost
+  port: 8080
+  
+spring:
+  application:
+    name: ecommerce-inventory-test
+  # Database Configuration
+  datasource:
+    url: jdbc:mysql://localhost:3306/inventory_db?createDatabaseIfNotExist=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # Hibernate Settings
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    show-sql: true
+
+logging:
+   level:
+      org.springframework: INFO
