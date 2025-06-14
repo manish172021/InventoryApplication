@@ -2,8 +2,10 @@ package com.example.InventoryApplication.advice;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.example.InventoryApplication.exception.InsufficientStockException;
@@ -11,6 +13,16 @@ import com.example.InventoryApplication.exception.ItemNotFoundException;
 
 @RestControllerAdvice
 public class InventoryExceptionHandler {
+	
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<String> handleValidationExceptions(MethodArgumentNotValidException ex) {
+	    return ResponseEntity.badRequest().body("Validation error: " + ex.getMessage());
+	}
+
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	public ResponseEntity<String> handleHandlerMethodValidationException(HandlerMethodValidationException ex) {
+	    return ResponseEntity.badRequest().body("Validation error: " + ex.getMessage());
+	}
 	
 	@ExceptionHandler(ItemNotFoundException.class)
     public ResponseEntity<String> handleItemNotFound(ItemNotFoundException ex) {
